@@ -760,20 +760,15 @@
             btn.disabled = true; btn.innerText = 'Отправка...';
             
             const keys = (data.web3forms_key || '').split(',').map(k => k.trim()).filter(k => k);
-            if (keys.length === 0) {
-                showNotify('Ошибка: не указан ключ почты админа!', true);
-                btn.disabled = false; btn.innerText = 'Отправить заявку'; return;
-            }
 
             const formDataObj = {};
             formDataObj["Форма (суть заявки)"] = data.title || "Заявка";
             const formData = new FormData(form);
             
-            // Умный сбор данных с поддержкой нескольких галочек
             for (let [key, value] of formData.entries()) {
                 const allValues = formData.getAll(key);
                 if (allValues.length > 1) {
-                    formDataObj[key] = allValues.join(', '); // Склеиваем ответы через запятую
+                    formDataObj[key] = allValues.join(', ');
                 } else {
                     formDataObj[key] = value;
                 }
@@ -783,50 +778,47 @@
             formDataObj["subject"] = `Лид: ${data.title || 'Заявка'}`;
                         
             try {
-                for (let key of keys) {
-                    formDataObj["access_key"] = key;
-                    await fetch("https://api.web3forms.com/submit", {
-                        method: "POST", 
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Accept": "application/json"
-                        },
-                        body: JSON.stringify(formDataObj) 
-                    });
+                // 1. Отправка на почту (ТОЛЬКО если указан ключ)
+                if (keys.length > 0) {
+                    for (let key of keys) {
+                        formDataObj["access_key"] = key;
+                        await fetch("https://api.web3forms.com/submit", {
+                            method: "POST", 
+                            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                            body: JSON.stringify(formDataObj) 
+                        });
+                    }
                 }
                 
-                // --- ОТПРАВКА В ЛИЧКУ ВК (ОБНОВЛЕННЫЙ КОД ДЛЯ МУЛЬТИ-РАССЫЛКИ) ---
+                // 2. ОТПРАВКА В ЛИЧКУ ВК
                 if (data.group_token && data.admin_vk_ids) {
-                    // Собираем текст сообщения (один раз для всех)
                     let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
+                    
+                    // ДОБАВЛЯЕМ ССЫЛКУ НА ОТПРАВИТЕЛЯ (если он авторизован в ВК)
+                    if (currentUserProfile && currentUserProfile.id) {
+                        vkText += `👤 Отправитель: https://vk.com/id${currentUserProfile.id}\n\n`;
+                    }
+                    
                     for (let [key, value] of Object.entries(formDataObj)) {
                         if (key !== 'access_key' && key !== 'from_name' && key !== 'subject' && key !== 'Форма (суть заявки)') {
                             vkText += `🔸 ${key}: ${value}\n`;
                         }
                     }
                     
-                    // Превращаем строку с ID через запятую в чистый массив без пробелов
                     const adminIds = data.admin_vk_ids.split(',').map(id => id.trim()).filter(id => id);
-                    
-                    // Запускаем отправку для каждого ID из списка по очереди
                     for (let adminId of adminIds) {
                         try {
                             await fetch('/api/vk-message', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    token: data.group_token,
-                                    admin_id: adminId,
-                                    text: vkText
-                                })
+                                body: JSON.stringify({ token: data.group_token, admin_id: adminId, text: vkText })
                             });
                         } catch (vkErr) {
                             console.error(`Ошибка отправки админу ${adminId}:`, vkErr);
                         }
                     }
                 }
-                // ---------------------------------------------------------------
-                
+                                
                 hideAll();
                 document.getElementById('successModal').classList.remove('hidden');
 
