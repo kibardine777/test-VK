@@ -131,10 +131,10 @@
     <textarea id="editSubtitle" maxlength="500"></textarea>
     <label>Файл обложки (URL картинки):</label>
     <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/..." maxlength="300">
-    <label>Ключ Web3Forms (Можно несколько через запятую) <span style="color:#FF3B30">*</span>:</label>
+    <label>Ключ Web3Forms (Можно несколько через запятую):</label>
     <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
     
-    <label>ID администраторов ВКонтакте (через запятую):</label>
+    <label>ID администраторов ВКонтакте (через запятую) <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300">
     
     <label>Ссылка на политику конфиденциальности:</label>
@@ -571,11 +571,6 @@
         }
 
         const keyInput = document.getElementById('editKey').value.trim();
-        if (!keyInput) {
-            showNotify('Ошибка: Укажите ключ Web3Forms для получения заявок!', true);
-            document.getElementById('editKey').focus();
-            return;
-        }
         if (keyInput) {
             const keys = keyInput.split(',').map(k => k.trim());
             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -584,6 +579,24 @@
                     showNotify('Ошибка: Неверный формат ключа Web3Forms!', true);
                     document.getElementById('editKey').focus();
                     return;
+                }
+            }
+        }
+
+        // --- НОВАЯ СТРОГАЯ ПРОВЕРКА ID ВКОНТАКТЕ ---
+        const adminIdsInput = document.getElementById('editAdminIds').value.trim();
+        if (!adminIdsInput) {
+            showNotify('Ошибка: Укажите ID администраторов для получения заявок!', true);
+            document.getElementById('editAdminIds').focus();
+            return;
+        }
+        
+        // Регулярное выражение: разрешает ТОЛЬКО цифры, запятые и пробелы
+        const validIdsRegex = /^[0-9,\s]+$/;
+        if (!validIdsRegex.test(adminIdsInput)) {
+            showNotify('Ошибка: В поле ID ВКонтакте можно вводить ТОЛЬКО цифры (и запятые)! Уберите буквы и ссылки.', true);
+            document.getElementById('editAdminIds').focus();
+            return;
                 }
             }
         }
