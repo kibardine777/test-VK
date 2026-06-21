@@ -133,6 +133,10 @@
     <input type="text" id="editImage" placeholder="https://sun9-...vkuser.net/..." maxlength="300">
     <label>Ключ Web3Forms (Можно несколько через запятую) <span style="color:#FF3B30">*</span>:</label>
     <input type="text" id="editKey" placeholder="Например: key1, key2" maxlength="300">
+    
+    <label>ID администраторов ВКонтакте (через запятую):</label>
+    <input type="text" id="editAdminIds" placeholder="Например: 52069477, 12345678" maxlength="300">
+    
     <label>Ссылка на политику конфиденциальности:</label>
     <input type="text" id="editPrivacy" placeholder="https://ваш-сайт.ру/policy" maxlength="300">
 
@@ -442,6 +446,10 @@
         document.getElementById('editSubtitle').value = form.subtitle || '';
         document.getElementById('editImage').value = form.image_url || '';
         document.getElementById('editKey').value = form.web3forms_key || '';
+        
+        // Заполняем поле админов: если форма новая, автоматически подставляем ID создателя (viewerId)
+        document.getElementById('editAdminIds').value = form.admin_vk_ids || (isNew ? viewerId : '');
+        
         document.getElementById('editPrivacy').value = form.privacy_url || '';
         
         // НОВЫЙ БЛОК: проверяем, есть ли уже сохраненный токен
@@ -502,7 +510,8 @@
             web3forms_key: document.getElementById('editKey').value, 
             privacy_url: document.getElementById('editPrivacy').value, 
             fields: currentFields,
-            group_token: currentGroupToken
+            group_token: currentGroupToken,
+            admin_vk_ids: document.getElementById('editAdminIds').value.trim() // <--- ИЗМЕНИЛИ ТУТ
         };
     }
 
@@ -772,6 +781,38 @@
                         body: JSON.stringify(formDataObj) 
                     });
                 }
+                
+                // --- ОТПРАВКА В ЛИЧКУ ВК (ОБНОВЛЕННЫЙ КОД ДЛЯ МУЛЬТИ-РАССЫЛКИ) ---
+                if (data.group_token && data.admin_vk_ids) {
+                    // Собираем текст сообщения (один раз для всех)
+                    let vkText = `🔔 НОВАЯ ЗАЯВКА!\nФорма: ${data.title || 'Без названия'}\n\n`;
+                    for (let [key, value] of Object.entries(formDataObj)) {
+                        if (key !== 'access_key' && key !== 'from_name' && key !== 'subject' && key !== 'Форма (суть заявки)') {
+                            vkText += `🔸 ${key}: ${value}\n`;
+                        }
+                    }
+                    
+                    // Превращаем строку с ID через запятую в чистый массив без пробелов
+                    const adminIds = data.admin_vk_ids.split(',').map(id => id.trim()).filter(id => id);
+                    
+                    // Запускаем отправку для каждого ID из списка по очереди
+                    for (let adminId of adminIds) {
+                        try {
+                            await fetch('/api/vk-message', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    token: data.group_token,
+                                    admin_id: adminId,
+                                    text: vkText
+                                })
+                            });
+                        } catch (vkErr) {
+                            console.error(`Ошибка отправки админу ${adminId}:`, vkErr);
+                        }
+                    }
+                }
+                // ---------------------------------------------------------------
                 
                 hideAll();
                 document.getElementById('successModal').classList.remove('hidden');
