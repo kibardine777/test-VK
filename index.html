@@ -220,6 +220,7 @@
     let allForms = []; 
     let editingFormId = null; 
     let currentUserProfile = null;
+    let currentGroupToken = '';
 
     let modalCallback = null;
     function showModal(title, text, type, callback) {
@@ -245,6 +246,26 @@
         else toast.classList.remove('toast-error');
         toast.classList.remove('hidden');
         setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    function requestGroupToken() {
+        vkBridge.send("VKWebAppGetCommunityToken", {
+            "app_id": parseInt(params.get('vk_app_id')),
+            "group_id": parseInt(gid),
+            "scope": "messages"
+        })
+        .then(data => {
+            if (data.access_token) {
+                currentGroupToken = data.access_token;
+                document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
+                document.getElementById('tokenBtn').style.background = '#4BB34B';
+                showNotify("Группа успешно авторизована! Не забудьте сохранить форму.");
+            }
+        })
+        .catch(error => {
+            console.log(error);
+            showNotify("Не удалось получить доступ к сообщениям", true);
+        });
     }
 
     function generateId() { return Math.random().toString(36).substr(2, 9); }
@@ -423,6 +444,16 @@
         document.getElementById('editKey').value = form.web3forms_key || '';
         document.getElementById('editPrivacy').value = form.privacy_url || '';
         
+        // НОВЫЙ БЛОК: проверяем, есть ли уже сохраненный токен
+        currentGroupToken = form.group_token || ''; 
+        if (currentGroupToken) {
+            document.getElementById('tokenBtn').innerText = '✅ Уведомления ВК включены';
+            document.getElementById('tokenBtn').style.background = '#4BB34B';
+        } else {
+            document.getElementById('tokenBtn').innerText = '💬 Включить уведомления в личку ВК';
+            document.getElementById('tokenBtn').style.background = '#2787F5';
+        }
+
         currentFields = form.fields || [];
         renderFieldsEditor();
     }
@@ -470,7 +501,8 @@
             image_url: document.getElementById('editImage').value, 
             web3forms_key: document.getElementById('editKey').value, 
             privacy_url: document.getElementById('editPrivacy').value, 
-            fields: currentFields
+            fields: currentFields,
+            group_token: currentGroupToken
         };
     }
 
