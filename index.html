@@ -592,7 +592,7 @@
         // Регулярное выражение: разрешает ТОЛЬКО цифры, запятые и пробелы
         const validIdsRegex = /^[0-9,\s]+$/;
         if (!validIdsRegex.test(adminIdsInput)) {
-            showNotify('Ошибка: В поле ID ВКонтакте можно вводить ТОЛЬКО цифры (и запятые)! Уберите буквы и ссылки.', true);
+            showNotify('Ошибка: В поле ID ВКонтакте можно вводить ТОЛЬКО цифры! Уберите буквы, ссылки и другие символы.', true);
             document.getElementById('editAdminIds').focus();
             return;
                 }
